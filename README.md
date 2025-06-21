@@ -15,12 +15,6 @@ Currently, the project includes an implementation of the **A\*** (A-star) algori
 
 ---
 
-## 📽️ Demo
-
-![A\* Demo GIF](demo.gif) <!-- Replace with an actual GIF if available -->
-
----
-
 ## 🛠️ Technologies Used
 
 - Python 3.12
@@ -71,4 +65,6 @@ Feel free to fork this project and add your own pathfinding algorithms! Pull req
 ## 📄 License
 This project is open-source and available under the MIT License.
 
-Built with ❤️ using Python & Pygame.
+---
+
+<p align="center">Built with ❤️ using Python & Pygame.</p>
