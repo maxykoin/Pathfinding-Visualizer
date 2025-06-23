@@ -2,67 +2,64 @@ import pygame
 import time
 from queue import PriorityQueue
 
+# === CONFIG ===
 pygame.init()
-width, height = 800, 850
-win = pygame.display.set_mode((width, height))
+WINDOW_WIDTH, GRID_HEIGHT, HEADER_HEIGHT = 800, 780, 70
+WINDOW_HEIGHT = GRID_HEIGHT + HEADER_HEIGHT
+ROWS = 50
+FONT = pygame.font.SysFont("consolas", 18)
+
+# === COLORS ===
+RED, GREEN, YELLOW = (255, 0, 0), (0, 255, 0), (255, 255, 0)
+WHITE, BLACK = (255, 255, 255), (0, 0, 0)
+PURPLE, GREY, TURQUOISE = (128, 0, 128), (128, 128, 128), (64, 224, 208)
+CYAN = (0, 255, 255)
+
+win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Pathfinding Visualizer")
 
-# Colors
-red, green, yellow = (255, 0, 0), (0, 255, 0), (255, 255, 0)
-white, black = (255, 255, 255), (0, 0, 0)
-purple, grey, turquoise = (128, 0, 128), (128, 128, 128), (64, 224, 208)
-blue = (0, 0, 255)
-
-# Constants
-rows = 50
-buttonHeight = 50
-font = pygame.font.SysFont("Arial", 20)
+# === ALGORITHMS ===
+ALGORITHMS = {
+    "Dijkstra": {"key": pygame.K_1, "heuristic": False},
+    "A*": {"key": pygame.K_2, "heuristic": True},
+    # "BFS": {"key": pygame.K_4, "heuristic": False},  # Add more here
+}
 
 class Spot:
     def __init__(self, row, col, cellSize, totalRows):
         self.row = row
         self.col = col
-        self.x = col * cellSize  # ✅ col → x
-        self.y = row * cellSize + buttonHeight  # ✅ row → y (+ header)
-        self.color = white
+        self.x = col * cellSize
+        self.y = row * cellSize + HEADER_HEIGHT
+        self.color = WHITE
         self.neighbors = []
         self.cellSize = cellSize
         self.totalRows = totalRows
 
-    def getPos(self):
-        return self.row, self.col
-
-    def isClosed(self): return self.color == red
-    def isOpen(self): return self.color == green
-    def isBarrier(self): return self.color == black
-    def isStart(self): return self.color == purple
-    def isEnd(self): return self.color == turquoise
-    def reset(self): self.color = white
-    def makeClosed(self): self.color = red
-    def makeOpen(self): self.color = green
-    def makeBarrier(self): self.color = black
-    def makeStart(self): self.color = purple
-    def makeEnd(self): self.color = turquoise
-    def makePath(self): self.color = yellow
-
+    def getPos(self): return self.row, self.col
+    def isClosed(self): return self.color == RED
+    def isOpen(self): return self.color == GREEN
+    def isBarrier(self): return self.color == BLACK
+    def isStart(self): return self.color == PURPLE
+    def isEnd(self): return self.color == TURQUOISE
+    def reset(self): self.color = WHITE
+    def makeClosed(self): self.color = RED
+    def makeOpen(self): self.color = GREEN
+    def makeBarrier(self): self.color = BLACK
+    def makeStart(self): self.color = PURPLE
+    def makeEnd(self): self.color = TURQUOISE
+    def makePath(self): self.color = YELLOW
     def draw(self, win):
         pygame.draw.rect(win, self.color, (self.x, self.y, self.cellSize, self.cellSize))
-
     def updateNeighbors(self, grid):
         self.neighbors = []
-        if self.row < self.totalRows - 1 and not grid[self.row + 1][self.col].isBarrier():
-            self.neighbors.append(grid[self.row + 1][self.col])
-        if self.row > 0 and not grid[self.row - 1][self.col].isBarrier():
-            self.neighbors.append(grid[self.row - 1][self.col])
-        if self.col < self.totalRows - 1 and not grid[self.row][self.col + 1].isBarrier():
-            self.neighbors.append(grid[self.row][self.col + 1])
-        if self.col > 0 and not grid[self.row][self.col - 1].isBarrier():
-            self.neighbors.append(grid[self.row][self.col - 1])
-
+        if self.row < self.totalRows - 1 and not grid[self.row+1][self.col].isBarrier(): self.neighbors.append(grid[self.row+1][self.col])
+        if self.row > 0 and not grid[self.row-1][self.col].isBarrier(): self.neighbors.append(grid[self.row-1][self.col])
+        if self.col < self.totalRows - 1 and not grid[self.row][self.col+1].isBarrier(): self.neighbors.append(grid[self.row][self.col+1])
+        if self.col > 0 and not grid[self.row][self.col-1].isBarrier(): self.neighbors.append(grid[self.row][self.col-1])
     def __lt__(self, other): return False
 
-def heuristic(p1, p2):
-    return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+def heuristic(p1, p2): return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
 
 def reconstructPath(cameFrom, current, draw):
     while current in cameFrom:
@@ -71,30 +68,21 @@ def reconstructPath(cameFrom, current, draw):
         current.makePath()
         draw()
 
-def dijkstra(draw, grid, start, end):
-    return runAlgorithm(draw, grid, start, end, useHeuristic=False)
-
-def aStar(draw, grid, start, end):
-    return runAlgorithm(draw, grid, start, end, useHeuristic=True)
-
 def runAlgorithm(draw, grid, start, end, useHeuristic):
-    count = 0
-    openSet = PriorityQueue()
+    count, openSet = 0, PriorityQueue()
     openSet.put((0, count, start))
     cameFrom = {}
-
     gScore = {spot: float("inf") for row in grid for spot in row}
     fScore = {spot: float("inf") for row in grid for spot in row}
     gScore[start] = 0
     fScore[start] = heuristic(start.getPos(), end.getPos()) if useHeuristic else 0
-
     openSetHash = {start}
+
     while not openSet.empty():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-                return False
-
+                quit()
         current = openSet.get()[2]
         openSetHash.remove(current)
 
@@ -104,11 +92,11 @@ def runAlgorithm(draw, grid, start, end, useHeuristic):
             return True
 
         for neighbor in current.neighbors:
-            tempGScore = gScore[current] + 1
-            if tempGScore < gScore[neighbor]:
+            tempG = gScore[current] + 1
+            if tempG < gScore[neighbor]:
                 cameFrom[neighbor] = current
-                gScore[neighbor] = tempGScore
-                fScore[neighbor] = tempGScore + (heuristic(neighbor.getPos(), end.getPos()) if useHeuristic else 0)
+                gScore[neighbor] = tempG
+                fScore[neighbor] = tempG + (heuristic(neighbor.getPos(), end.getPos()) if useHeuristic else 0)
                 if neighbor not in openSetHash:
                     count += 1
                     openSet.put((fScore[neighbor], count, neighbor))
@@ -120,60 +108,68 @@ def runAlgorithm(draw, grid, start, end, useHeuristic):
     return False
 
 def makeGrid(rows, width):
-    cellSize = width // rows
-    return [[Spot(i, j, cellSize, rows) for j in range(rows)] for i in range(rows)]
+    size = width // rows
+    return [[Spot(i, j, size, rows) for j in range(rows)] for i in range(rows)]
 
 def drawGrid(win, rows, width):
-    cellSize = width // rows
+    size = width // rows
     for i in range(rows):
-        pygame.draw.line(win, grey, (0, i * cellSize + buttonHeight), (width, i * cellSize + buttonHeight))
+        pygame.draw.line(win, GREY, (0, i * size + HEADER_HEIGHT), (width, i * size + HEADER_HEIGHT))
         for j in range(rows):
-            pygame.draw.line(win, grey, (j * cellSize, buttonHeight), (j * cellSize, width + buttonHeight))
+            pygame.draw.line(win, GREY, (j * size, HEADER_HEIGHT), (j * size, width + HEADER_HEIGHT))
 
-def drawHeader(win, algoName, elapsedTime):
-    pygame.draw.rect(win, blue, (0, 0, width, buttonHeight))
-    text = font.render(
-        f"1: Dijkstra | 2: A* | 3: All | C: Clear | Current: {algoName} | Time: {elapsedTime:.4f}s",
-        True, white
-    )
-    win.blit(text, (10, 15))
+def drawHeader(win, selection, times):
+    pygame.draw.rect(win, (30, 30, 60), (0, 0, WINDOW_WIDTH, HEADER_HEIGHT))
+    pygame.draw.line(win, CYAN, (0, HEADER_HEIGHT-1), (WINDOW_WIDTH, HEADER_HEIGHT-1))
+    pygame.draw.line(win, (0, 180, 255), (0, HEADER_HEIGHT-2), (WINDOW_WIDTH, HEADER_HEIGHT-2))
 
-def draw(win, grid, rows, width, algoName="", elapsedTime=0):
-    win.fill(white)
-    drawHeader(win, algoName, elapsedTime)
+    options = ' | '.join([f"[{pygame.key.name(v['key']).upper()}] {k}" for k, v in ALGORITHMS.items()])
+    lines = [
+        f"{options} | [3] Compare | [C] Clear",
+        f"Selected: {selection or '---'} " + ' | '.join([f"{k}: {times.get(k.lower(), '---')}s" for k in ALGORITHMS])
+    ]
+    for idx, text in enumerate(lines):
+        surf = FONT.render(text, True, (255, 255, 255))
+        win.blit(surf, (20, 5 + idx * 24))
+
+def draw(win, grid, headerSel, headerTimes):
+    win.fill(WHITE)
+    drawHeader(win, headerSel, headerTimes)
     for row in grid:
         for spot in row:
             spot.draw(win)
-    drawGrid(win, rows, width)
+    drawGrid(win, ROWS, WINDOW_WIDTH)
     pygame.display.update()
 
-def getClickedPos(pos, rows, width):
+def getClickedPos(pos):
     x, y = pos
-    if y < buttonHeight:
-        return None, None
-    gap = width // rows
-    row = (y - buttonHeight) // gap
-    col = x // gap
-    return row, col
+    if y < HEADER_HEIGHT: return None, None
+    size = WINDOW_WIDTH // ROWS
+    return (y - HEADER_HEIGHT) // size, x // size
 
-def main(win, width):
-    grid = makeGrid(rows, width)
+def clearSearch(grid):
+    for row in grid:
+        for spot in row:
+            if not (spot.isStart() or spot.isEnd() or spot.isBarrier()):
+                spot.reset()
+
+def main():
+    grid = makeGrid(ROWS, WINDOW_WIDTH)
     start = end = None
+    algoSelection = ""
+    times = {}
     run = True
-    selectedAlgo = "dijkstra"
-    elapsedTime = 0
 
     while run:
-        draw(win, grid, rows, width, selectedAlgo, elapsedTime)
+        draw(win, grid, algoSelection, times)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
 
             if pygame.mouse.get_pressed()[0]:
-                pos = pygame.mouse.get_pos()
-                row, col = getClickedPos(pos, rows, width)
-                if row is None or col is None:
-                    continue
+                row, col = getClickedPos(pygame.mouse.get_pos())
+                if row is None: continue
                 spot = grid[row][col]
                 if not start and spot != end:
                     start = spot
@@ -185,42 +181,49 @@ def main(win, width):
                     spot.makeBarrier()
 
             elif pygame.mouse.get_pressed()[2]:
-                pos = pygame.mouse.get_pos()
-                row, col = getClickedPos(pos, rows, width)
-                if row is None or col is None:
-                    continue
+                row, col = getClickedPos(pygame.mouse.get_pos())
+                if row is None: continue
                 spot = grid[row][col]
+                if spot == start: start = None
+                elif spot == end: end = None
                 spot.reset()
-                if spot == start:
-                    start = None
-                elif spot == end:
-                    end = None
 
-            if event.type == pygame.KEYDOWN:
-                if event.key in (pygame.K_1, pygame.K_2, pygame.K_3) and start and end:
-                    for rowObj in grid:
-                        for spot in rowObj:
-                            spot.updateNeighbors(grid)
-                    startTime = time.time()
-                    if event.key == pygame.K_1:
-                        selectedAlgo = "dijkstra"
-                        dijkstra(lambda: draw(win, grid, rows, width, selectedAlgo, elapsedTime), grid, start, end)
-                    elif event.key == pygame.K_2:
-                        selectedAlgo = "aStar"
-                        aStar(lambda: draw(win, grid, rows, width, selectedAlgo, elapsedTime), grid, start, end)
-                    elif event.key == pygame.K_3:
-                        selectedAlgo = "all"
-                        dijkstra(lambda: None, grid, start, end)
-                        aStar(lambda: None, grid, start, end)
-                    elapsedTime = time.time() - startTime
+            if event.type == pygame.KEYDOWN and start and end:
+                clearSearch(grid)
+                for rowList in grid:
+                    for spot in rowList:
+                        spot.updateNeighbors(grid)
 
-                if event.key == pygame.K_c:
-                    start, end = None, None
-                    elapsedTime = 0
-                    grid = makeGrid(rows, width)
+                if event.key == pygame.K_3:
+                    algoSelection = "Compare"
+                    for name, config in ALGORITHMS.items():
+                        clearSearch(grid)
+                        start.makeStart(); end.makeEnd()
+                        for rowList in grid:
+                            for spot in rowList:
+                                spot.updateNeighbors(grid)
+                        t0 = time.time()
+                        runAlgorithm(lambda: draw(win, grid, algoSelection, times), grid, start, end, config["heuristic"])
+                        times[name.lower()] = round(time.time() - t0, 4)
+
+                else:
+                    for name, config in ALGORITHMS.items():
+                        if event.key == config["key"]:
+                            algoSelection = name
+                            t0 = time.time()
+                            runAlgorithm(lambda: draw(win, grid, algoSelection, times), grid, start, end, config["heuristic"])
+                            times[name.lower()] = round(time.time() - t0, 4)
+                            break
+
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_c:
+                start = end = None
+                algoSelection = ""
+                times.clear()
+                grid = makeGrid(ROWS, WINDOW_WIDTH)
 
     pygame.quit()
 
-main(win, width)
+main()
+
 
 
