@@ -20,9 +20,8 @@ pygame.display.set_caption("Pathfinding Visualizer")
 
 # === ALGORITHMS ===
 ALGORITHMS = {
-    "Dijkstra": {"key": pygame.K_1, "heuristic": False},
-    "A*": {"key": pygame.K_2, "heuristic": True},
-    # "BFS": {"key": pygame.K_4, "heuristic": False},  # Add more here
+    "Dijkstra": {"key": pygame.K_1, "h": False},
+    "A*": {"key": pygame.K_2, "h": True}
 }
 
 class Spot:
@@ -49,17 +48,20 @@ class Spot:
     def makeStart(self): self.color = PURPLE
     def makeEnd(self): self.color = TURQUOISE
     def makePath(self): self.color = YELLOW
+
     def draw(self, win):
         pygame.draw.rect(win, self.color, (self.x, self.y, self.cellSize, self.cellSize))
+
     def updateNeighbors(self, grid):
         self.neighbors = []
         if self.row < self.totalRows - 1 and not grid[self.row+1][self.col].isBarrier(): self.neighbors.append(grid[self.row+1][self.col])
         if self.row > 0 and not grid[self.row-1][self.col].isBarrier(): self.neighbors.append(grid[self.row-1][self.col])
         if self.col < self.totalRows - 1 and not grid[self.row][self.col+1].isBarrier(): self.neighbors.append(grid[self.row][self.col+1])
         if self.col > 0 and not grid[self.row][self.col-1].isBarrier(): self.neighbors.append(grid[self.row][self.col-1])
-    def __lt__(self, other): return False
 
-def heuristic(p1, p2): return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+    def __lt__(self): return False
+
+def h(p1, p2): return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
 
 def reconstructPath(cameFrom, current, draw):
     while current in cameFrom:
@@ -68,14 +70,14 @@ def reconstructPath(cameFrom, current, draw):
         current.makePath()
         draw()
 
-def runAlgorithm(draw, grid, start, end, useHeuristic):
+def runAlgorithm(draw, grid, start, end, useh):
     count, openSet = 0, PriorityQueue()
     openSet.put((0, count, start))
     cameFrom = {}
     gScore = {spot: float("inf") for row in grid for spot in row}
     fScore = {spot: float("inf") for row in grid for spot in row}
     gScore[start] = 0
-    fScore[start] = heuristic(start.getPos(), end.getPos()) if useHeuristic else 0
+    fScore[start] = h(start.getPos(), end.getPos()) if useh else 0
     openSetHash = {start}
 
     while not openSet.empty():
@@ -96,7 +98,7 @@ def runAlgorithm(draw, grid, start, end, useHeuristic):
             if tempG < gScore[neighbor]:
                 cameFrom[neighbor] = current
                 gScore[neighbor] = tempG
-                fScore[neighbor] = tempG + (heuristic(neighbor.getPos(), end.getPos()) if useHeuristic else 0)
+                fScore[neighbor] = tempG + (h(neighbor.getPos(), end.getPos()) if useh else 0)
                 if neighbor not in openSetHash:
                     count += 1
                     openSet.put((fScore[neighbor], count, neighbor))
@@ -125,7 +127,7 @@ def drawHeader(win, selection, times):
 
     options = ' | '.join([f"[{pygame.key.name(v['key']).upper()}] {k}" for k, v in ALGORITHMS.items()])
     lines = [
-        f"{options} | [3] Compare | [C] Clear",
+        f"{options} | [0] Compare | [C] Clear",
         f"Selected: {selection or '---'} " + ' | '.join([f"{k}: {times.get(k.lower(), '---')}s" for k in ALGORITHMS])
     ]
     for idx, text in enumerate(lines):
@@ -194,7 +196,7 @@ def main():
                     for spot in rowList:
                         spot.updateNeighbors(grid)
 
-                if event.key == pygame.K_3:
+                if event.key == pygame.K_0:
                     algoSelection = "Compare"
                     for name, config in ALGORITHMS.items():
                         clearSearch(grid)
@@ -203,7 +205,7 @@ def main():
                             for spot in rowList:
                                 spot.updateNeighbors(grid)
                         t0 = time.time()
-                        runAlgorithm(lambda: draw(win, grid, algoSelection, times), grid, start, end, config["heuristic"])
+                        runAlgorithm(lambda: draw(win, grid, algoSelection, times), grid, start, end, config["h"])
                         times[name.lower()] = round(time.time() - t0, 4)
 
                 else:
@@ -211,7 +213,7 @@ def main():
                         if event.key == config["key"]:
                             algoSelection = name
                             t0 = time.time()
-                            runAlgorithm(lambda: draw(win, grid, algoSelection, times), grid, start, end, config["heuristic"])
+                            runAlgorithm(lambda: draw(win, grid, algoSelection, times), grid, start, end, config["h"])
                             times[name.lower()] = round(time.time() - t0, 4)
                             break
 
